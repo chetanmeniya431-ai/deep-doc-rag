@@ -1,5 +1,5 @@
 # Server (8 GB KVM, shared with other demos). Uses the one shared Ollama of the server
-# (the universal-rag-platform container) instead of starting its own.
+# (the universal-rag-platform container, on the nirmantra_shared network).
 # In the server .env:
 #   COMPOSE_FILE=docker-compose.yml:docker-compose.shared-ollama.yml:docker-compose.prod.yml
 # RAM budget: app 1.5 GB cap; llama3.2:3b (~2.8 GB) lives in the shared Ollama.

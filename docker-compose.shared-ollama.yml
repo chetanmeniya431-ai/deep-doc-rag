@@ -1,4 +1,5 @@
-# Reuse the Ollama container that already runs for universal-rag-platform
+# Reuse the shared Ollama (the universal-rag-platform container) over the
+# nirmantra_shared network,
 # (laptop and server) instead of starting a second one.
 # Set OLLAMA_URL=http://ollama:11434 in .env.
 services:
@@ -7,4 +8,4 @@ services:
 networks:
   shared_ollama:
     external: true
-    name: ${SHARED_OLLAMA_NETWORK:-universal-rag-platform_default}
+    name: ${SHARED_OLLAMA_NETWORK:-nirmantra_shared}
