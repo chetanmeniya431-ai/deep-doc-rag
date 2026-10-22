@@ -1,0 +1,10 @@
+# Reuse the Ollama container that already runs for universal-rag-platform
+# (laptop and server) instead of starting a second one.
+# Set OLLAMA_URL=http://ollama:11434 in .env.
+services:
+  app:
+    networks: [default, shared_ollama]
+networks:
+  shared_ollama:
+    external: true
+    name: ${SHARED_OLLAMA_NETWORK:-universal-rag-platform_default}

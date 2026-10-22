@@ -1,0 +1,5 @@
+data/
+__pycache__/
+.env
+.pytest_cache/
+docker-compose.override.yml

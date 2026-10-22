@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Page {{ page }} · {{ doc.name }}{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3">
+  <div>
+    <h1 class="text-xl font-semibold">Page {{ page }} of {{ doc.pages }}</h1>
+    <p class="text-gray-500 mt-1">{{ doc.title }} — how the parser read this page. Numbers show the reading order.</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="/inspect/{{ doc.id }}/{{ page - 1 }}" class="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50 {{ 'pointer-events-none opacity-40' if page <= 1 }}">← Previous</a>
+    <form onsubmit="location.href='/inspect/{{ doc.id }}/'+this.p.value; return false"><input name="p" value="{{ page }}" class="w-16 rounded-md border border-gray-300 px-2 py-2 text-center"></form>
+    <a href="/inspect/{{ doc.id }}/{{ page + 1 }}" class="px-4 py-2 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50 {{ 'pointer-events-none opacity-40' if page >= doc.pages }}">Next →</a>
+  </div>
+</div>
+
+<div class="flex flex-wrap gap-3 mt-4 text-xs">
+  {% for k, c in colours.items() %}<span class="flex items-center gap-1"><span class="h-3 w-3 rounded-sm" style="background: {{ c }}"></span>{{ k }}</span>{% endfor %}
+</div>
+
+<div class="grid lg:grid-cols-2 gap-6 mt-4">
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 self-start">
+    <div class="relative" id="pg">
+      <img src="/page-image/{{ doc.id }}/{{ page }}.png" class="w-full rounded-md" id="img">
+      {% for e in elements %}
+      <div class="absolute border-2 rounded-sm el" data-b="{{ e.bbox|tojson }}" style="border-color: {{ colours.get(e.kind, '#64748b') }}; background: {{ colours.get(e.kind, '#64748b') }}14">
+        <span class="absolute -top-2 -left-2 text-[10px] leading-4 px-1 rounded text-white" style="background: {{ colours.get(e.kind, '#64748b') }}">{{ e.ord + 1 }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="space-y-3">
+    {% for e in elements %}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <div class="flex items-center gap-2 text-xs">
+        <span class="font-medium">{{ e.ord + 1 }}</span>
+        <span class="rounded-md px-1.5 py-0.5 text-white" style="background: {{ colours.get(e.kind, '#64748b') }}">{{ e.kind }}</span>
+        <span class="text-gray-500">{{ 'full width' if e.col == -1 else ('left column' if e.col == 0 else 'right column') }}</span>
+        <span class="text-gray-400 truncate">{{ e.section }}</span>
+      </div>
+      {% if e.meta.caption %}<p class="text-xs text-sky-700 mt-1">{{ e.meta.caption }}</p>{% endif %}
+      {% if e.kind == 'table' and e.meta.rows %}
+      <div class="overflow-x-auto mt-2">
+        <table class="min-w-full text-xs">
+          <thead><tr>{% for h in e.meta.header %}<th class="px-2 py-1 text-left uppercase tracking-wide text-gray-500 bg-gray-50">{{ h }}</th>{% endfor %}</tr></thead>
+          <tbody>{% for r in e.meta.rows %}<tr class="{{ 'bg-gray-50' if loop.index is even }}">{% for c in r %}<td class="px-2 py-1">{{ c }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="mt-2 text-xs text-gray-700 whitespace-pre-line">{{ e.text }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <details class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+      <summary class="cursor-pointer text-xs font-medium">{{ chunks|length }} chunks built from this page</summary>
+      {% for c in chunks %}
+      <div class="mt-2 border-t border-gray-100 pt-2 text-xs"><span class="text-emerald-700">{{ c.kind }}</span> · <span class="text-gray-400">{{ c.section }}</span>
+        <p class="text-gray-700 whitespace-pre-line">{{ c.text[:600] }}</p></div>
+      {% endfor %}
+    </details>
+  </div>
+</div>
+<script>
+const img = document.getElementById('img');
+function place() {
+  const s = img.clientWidth / {{ w }};
+  document.querySelectorAll('.el').forEach(d => {
+    const [x0, y0, x1, y1] = JSON.parse(d.dataset.b);
+    Object.assign(d.style, {left: x0 * s + 'px', top: y0 * s + 'px', width: (x1 - x0) * s + 'px', height: (y1 - y0) * s + 'px'});
+  });
+}
+img.complete ? place() : img.onload = place;
+window.addEventListener('resize', place);
+</script>
+{% endblock %}

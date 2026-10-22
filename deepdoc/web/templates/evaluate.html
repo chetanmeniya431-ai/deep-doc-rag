@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Evaluate · DeepDoc RAG{% endblock %}
+{% block content %}
+<h1 class="text-xl font-semibold">Evaluate</h1>
+<p class="text-gray-500 mt-1">The demo report was written from known facts, so every right answer and its page are known.
+This page measures how often the system finds them, split by where the answer lives.</p>
+
+{% if not has_gold %}
+<div class="rounded-lg border border-gray-200 bg-white p-6 mt-6 text-gray-600">No answer key found. Run <code>python -m deepdoc.cli generate</code> first.</div>
+{% else %}
+<form action="/evaluate/run" method="post" class="mt-6 flex flex-wrap items-center gap-3 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+  <label class="text-xs text-gray-600">Questions
+    <select name="limit" class="ml-1 rounded-md border-gray-300 text-sm">
+      <option value="30">30 (quick, mixed)</option><option value="0">All</option>
+    </select>
+  </label>
+  {% if not public_demo %}
+  <label class="flex items-center gap-2 text-xs text-gray-600"><input type="checkbox" name="use_llm" value="1" class="rounded border-gray-300 text-emerald-600"> Also score LLM answers (slow on CPU)</label>
+  {% endif %}
+  <button class="px-4 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700" {{ 'disabled' if state.running }}>Run evaluation</button>
+  {% if state.running %}<span id="st" class="text-xs text-amber-700">Running… {{ state.done }}/{{ state.total }}</span>
+  <script>setTimeout(() => location.reload(), 4000)</script>{% endif %}
+</form>
+
+{% if report %}
+{% set o = report.summary.overall %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
+  {% for label, key, help in [('Right page first', 'hit@1', 'top source is from the answer page'),
+                              ('Right page in top ' ~ top_k, 'hit@' ~ top_k, 'any source from the answer page'),
+                              ('Fact found', 'fact_recall', 'exact answer text in the sources'),
+                              ('Answer correct' if report.summary.llm else 'MRR', 'answer_accuracy' if report.summary.llm else 'mrr', 'LLM answer contains the facts' if report.summary.llm else 'mean reciprocal rank')] %}
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+    <div class="text-xs text-gray-500">{{ label }}</div>
+    <div class="text-xl font-semibold mt-1">{{ '%.0f'|format(o[key] * 100) }}{{ '%' if key != 'mrr' else '' }}</div>
+    <div class="text-xs text-gray-400 mt-1">{{ help }}</div>
+  </div>
+  {% endfor %}
+</div>
+<p class="text-xs text-gray-500 mt-2">{{ o.n }} questions · {{ report.summary.seconds }} s</p>
+
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto mt-6">
+  <table class="min-w-full">
+    <thead class="bg-gray-50"><tr class="text-left text-xs uppercase tracking-wide text-gray-500">
+      <th class="px-4 py-3">Where the answer lives</th><th class="px-4 py-3">Questions</th><th class="px-4 py-3">Page first</th>
+      <th class="px-4 py-3">Page in top {{ top_k }}</th><th class="px-4 py-3">Fact found</th>{% if report.summary.llm %}<th class="px-4 py-3">Answer correct</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for t, b in report.summary.by_type.items() %}
+      <tr class="{{ 'bg-gray-50/50' if loop.index is even }} hover:bg-emerald-50/40 border-t border-gray-100">
+        <td class="px-4 py-2 font-medium">{{ t.replace('_', ' ') }}</td><td class="px-4 py-2">{{ b.n }}</td>
+        <td class="px-4 py-2">{{ '%.0f'|format(b['hit@1'] * 100) }}%</td><td class="px-4 py-2">{{ '%.0f'|format(b['hit@' ~ top_k] * 100) }}%</td>
+        <td class="px-4 py-2">{{ '%.0f'|format(b.fact_recall * 100) }}%</td>
+        {% if report.summary.llm %}<td class="px-4 py-2">{{ '%.0f'|format(b.answer_accuracy * 100) }}%</td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<details class="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+  <summary class="cursor-pointer font-medium">Questions that missed ({{ report.rows|rejectattr('fact_in_context')|list|length }})</summary>
+  {% for r in report.rows if not r.fact_in_context %}
+  <div class="border-t border-gray-100 mt-2 pt-2 text-xs">
+    <span class="text-emerald-700">{{ r.type }}</span> · {{ r.q }}<br>
+    <span class="text-gray-500">expected {{ r.answers|join(', ') }} on page {{ r.pages|join(', ') }} · top pages {{ r.top_pages }}</span>
+    {% if r.answer %}<br><span class="text-gray-700">answer: {{ r.answer }}</span>{% endif %}
+  </div>
+  {% endfor %}
+</details>
+{% endif %}
+{% endif %}
+{% endblock %}

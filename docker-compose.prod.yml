@@ -1,0 +1,18 @@
+# Server (8 GB KVM, shared with other demos). Uses the one shared Ollama of the server
+# (the universal-rag-platform container) instead of starting its own.
+# In the server .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.shared-ollama.yml:docker-compose.prod.yml
+# RAM budget: app 1.5 GB cap; llama3.2:3b (~2.8 GB) lives in the shared Ollama.
+services:
+  app:
+    # Only nginx on the host can reach the app. Cloudflare + nginx give HTTPS.
+    ports: !override
+      - "127.0.0.1:${APP_PORT:-8012}:8000"
+    volumes: !override
+      - appdata:/app/data
+    environment:
+      PUBLIC_DEMO: "1"
+    mem_limit: ${APP_MEM_LIMIT:-1500m}
+    memswap_limit: 2500m
+    cpus: ${APP_CPUS:-2}
+    restart: always
